@@ -4,23 +4,3 @@ h2 {
   font-size: 30px;
   letter-spacing: 5px;
 }
-body {
-    margin: 0;
-    overflow: hidden;
-}
-
-.moving-text {
-    position: absolute;
-    white-space: nowrap;
-    font-size: 24px;
-    animation: moveText 5s linear infinite; /* アニメーションのプロパティを設定 */
-}
-
-@keyframes moveText {
-    0% {
-        transform: translateX(100%); /* 開始位置（右端） */
-    }
-    100% {
-        transform: translateX(-100%); /* 終了位置（左端） */
-    }
-}
