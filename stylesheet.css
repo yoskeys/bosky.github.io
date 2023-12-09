@@ -10,3 +10,15 @@ h2 {
     background-color: #eee;
     padding: 2em;
   }
+
+.bread li {
+	display: inline-block;
+	margin-left: 12px;
+	padding-left: 16px;
+	background: url(./images/icon_breadcrumbs.svg) left center/6px auto no-repeat;
+}
+.bread li:first-child {
+	margin-left: 0;
+	padding-left: 0;
+	background: none;
+}
