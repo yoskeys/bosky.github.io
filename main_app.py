@@ -13,7 +13,7 @@ st.markdown("""
         }
     </style>
     <div class="yoskey-header">
-        <h2>よすきーの部屋：天気予報</h2>
+        <h2>よすきーの部屋の天気予報</h2>
     </div>
     """, unsafe_allow_html=True)
 
@@ -29,8 +29,8 @@ from sklearn.linear_model import LinearRegression
 import time
 
 # --- ページ設定 ---
-st.set_page_config(page_title="究極の季節適応型AI予報", page_icon="🌡️")
-st.title("🌡️ 季節適応型・7日間トレンドAI予報")
+st.set_page_config(page_title="天気予報")
+st.title("🌡️ 7日間トレンド予報")
 st.write("直近7日間の実況値を自動取得し、過去数年の同時期の傾向を『重み付け学習』して今日を予測します。")
 
 # --- 設定：取得する地点 ---
