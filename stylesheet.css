@@ -11,7 +11,7 @@ h2 {
     padding: 2em;
   }
 
-.bread li {
+  .bread li {
 	display: inline-block;
 	margin-left: 12px;
 	padding-left: 16px;
@@ -21,4 +21,8 @@ h2 {
 	margin-left: 0;
 	padding-left: 0;
 	background: none;
+}
+
+.koko{
+    color: black;
 }
