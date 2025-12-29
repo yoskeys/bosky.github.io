@@ -8,10 +8,10 @@ from sklearn.linear_model import LinearRegression
 import time
 
 # --- 1. ページ設定とタイトル ---
-st.set_page_config(page_title="よすきー気象予報", page_icon="🌤️")
-st.title("🌤️ AI予報士 よすきー")
+st.set_page_config(page_title="よすきー天気予報", page_icon="🌤️")
+st.title("よすきー天気予報")
 st.markdown("""
-**過去10年（約3,650日）の膨大な歴史を学習したビッグデータ・モデルです。**
+**過去10年のデータを学習したビッグデータモデルです。**
 直近7日間のトレンドから今日を予測し、その結果を元に明日まで見通します。
 """)
 
@@ -67,10 +67,14 @@ if st.button('最新トレンドを解析して未来を予測する'):
     status_text = st.empty()
     progress_bar = st.progress(0)
     
+    # 日付の計算
+    today = datetime.date.today()
+    tomorrow = today + datetime.timedelta(days=1)
+    
     try:
         # ① 直近7日間の実況値を取得
         recent_actual_data = [] 
-        target_dates = [(datetime.date.today() - datetime.timedelta(days=i)) for i in range(1, 8)]
+        target_dates = [(today - datetime.timedelta(days=i)) for i in range(1, 8)]
         
         for i, date in enumerate(reversed(target_dates)): # 古い順(7日前)から取得
             status_text.text(f"📡 気象庁より実況データを取得中: {date}")
@@ -82,7 +86,7 @@ if st.button('最新トレンドを解析して未来を予測する'):
             time.sleep(0.1)
 
         # ② 10年分データを用いた学習
-        status_text.text("🧠 過去10年の膨大な歴史（3,650日分）を学習中...")
+        status_text.text("🧠 過去10年の歴史を学習中...")
         df_all = pd.read_csv('weather_database.csv')
         df_all['date'] = pd.to_datetime(df_all['date'])
         
@@ -96,11 +100,11 @@ if st.button('最新トレンドを解析して未来を予測する'):
                     features.append(col_name)
         
         df_ml = df_all.dropna().copy()
-        current_month = datetime.date.today().month
+        current_month = today.month
         weights = calculate_seasonal_weights(df_ml['date'].dt.month.values, current_month)
 
         # ③ 今日の予測実行
-        status_text.text("🧪 現在の気圧・湿度分布から今日を解析中...")
+        status_text.text("🧪 今日を解析中...")
         input_today = pd.DataFrame([build_input_vector(recent_actual_data)], columns=features)
         
         preds_today = {}
@@ -111,7 +115,7 @@ if st.button('最新トレンドを解析して未来を予測する'):
             models[key] = model
 
         # ④ 明日の予測 (2段階予測)
-        status_text.text("🚀 今日の予測結果を元に、さらに明日を計算中...")
+        status_text.text("🚀 明日を計算中...")
         predicted_today_record = {}
         for st_name in STATIONS.keys():
             t_mean = (preds_today['max'] + preds_today['min']) / 2
@@ -134,32 +138,31 @@ if st.button('最新トレンドを解析して未来を予測する'):
         progress_bar.empty()
         st.success("全ての解析が完了しました！")
 
-        # A. 実績データの掲示
+        # A. 実績データの掲示 (小数点1桁、日照時間なし)
         st.markdown("---")
-        st.subheader("📊 直近7日間の観測実績 (東京)")
+        st.subheader("直近7日間の観測 (東京)")
         st.write("AIが予測の根拠とした実際の気象推移です。")
         actual_summary = []
         for i, date in enumerate(target_dates):
             d = recent_actual_data[i]['tokyo']
             actual_summary.append({
                 "日付": date.strftime('%m/%d'),
-                "最高気温 (℃)": round(d['temp_max'], 1),
-                "最低気温 (℃)": round(d['temp_min'], 1),
-                "湿度 (%)": int(d['hum']),
-                "日照 (h)": round(d['sun'], 1)
+                "最高気温 (℃)": f"{d['temp_max']:.1f}",
+                "最低気温 (℃)": f"{d['temp_min']:.1f}",
+                "平均湿度 (%)": int(d['hum'])
             })
         st.table(pd.DataFrame(actual_summary))
 
-        # B. 予測結果の掲示
+        # B. 予測結果の掲示 (日付入りタイトル)
         st.markdown("---")
         t_col, m_col = st.columns(2)
         with t_col:
-            st.subheader("📌 今日の予報")
+            st.subheader(f"今日 ({today.strftime('%m/%d')}) の予報")
             st.metric("最高気温", f"{preds_today['max']:.1f} ℃")
             st.metric("最低気温", f"{preds_today['min']:.1f} ℃")
             
         with m_col:
-            st.subheader("📅 明日の予報")
+            st.subheader(f"明日 ({tomorrow.strftime('%m/%d')}) の予報")
             st.metric("最高気温", f"{preds_tomorrow['max']:.1f} ℃", delta=f"{preds_tomorrow['max'] - preds_today['max']:.1f} ℃")
             st.metric("最低気温", f"{preds_tomorrow['min']:.1f} ℃", delta=f"{preds_tomorrow['min'] - preds_today['min']:.1f} ℃")
 
@@ -167,13 +170,3 @@ if st.button('最新トレンドを解析して未来を予測する'):
 
     except Exception as e:
         st.error(f"エラーが発生しました: {e}")
-
-# --- サイドバー ---
-st.sidebar.markdown(f"""
-### 🛠️ System Info
-- **Ver:** 2.0 (Big Data Update)
-- **Data Source:** 気象庁 (2015-2025)
-- **Model:** Seasonal Weighted Regression
----
-Developed by Yoskey
-""")
