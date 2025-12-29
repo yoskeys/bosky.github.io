@@ -68,7 +68,8 @@ if st.button('最新トレンドを解析して未来を予測する'):
     progress_bar = st.progress(0)
     
     # 日付の計算
-    today = datetime.date.today()
+    JST = timezone(timedelta(hours=+9), 'JST')
+    today = datetime.datetime.now(JST).date() 
     tomorrow = today + datetime.timedelta(days=1)
     
     try:
