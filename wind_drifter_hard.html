@@ -3,21 +3,51 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Wind Drifter (高難易度) - よすきーの部屋</title>
+<title>Wind Drifter (高難易度・予報付き) - よすきーの部屋</title>
 <style>
   /* --- デザイン設定 (CSS) --- */
-  body { font-family: sans-serif; background-color: #2b2b2b; color: #f0f0f0; max-width: 800px; margin: 0 auto; padding: 20px; }
+  body { font-family: sans-serif; background-color: #2b2b2b; color: #f0f0f0; max-width: 900px; margin: 0 auto; padding: 20px; }
   h1 { text-align: center; color: #ff5252; text-shadow: 2px 2px #000; }
   .rules { background: #424242; padding: 15px; border-radius: 8px; margin-bottom: 20px; line-height: 1.6; border: 1px solid #ff5252; }
   .bold { font-weight: bold; color: #ffcc00; }
   
+  /* ゲームエリア全体 (予報 + 盤面) */
+  .game-container {
+    display: flex;
+    justify-content: center;
+    gap: 15px; /* 予報と盤面の隙間 */
+    margin-bottom: 20px;
+  }
+
+  /* 予報エリア (左側) */
+  .forecast-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .forecast-label { font-size: 12px; color: #aaa; margin-bottom: 5px; font-weight: bold; }
+  .forecast-grid {
+    display: grid;
+    grid-template-rows: repeat(5, auto); /* 5行 */
+    gap: 4px;
+  }
+  .forecast-cell {
+    width: 60px; height: 60px;
+    border: 2px dashed #777; /* 点線で「まだ来てない感」を出す */
+    border-radius: 4px;
+    background-color: #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    opacity: 0.7;
+  }
+
   /* 盤面グリッド */
   .game-board {
     display: grid;
-    grid-template-columns: repeat(6, auto);
+    grid-template-columns: repeat(6, auto); /* 6列 */
     gap: 4px;
-    justify-content: center;
-    margin-bottom: 20px;
   }
   
   /* 1マスの設定 */
@@ -33,13 +63,13 @@
     position: relative;
   }
   
-  /* マスの色分け (ダークモード風) */
-  .type-L { background-color: #5a2a2a; border: 2px solid #ef5350; color: #ffcdd2; } /* 低気圧(赤) */
-  .type-H { background-color: #1a3a5a; border: 2px solid #42a5f5; color: #bbdefb; } /* 高気圧(青) */
+  /* マスの色分け */
+  .type-L { background-color: #5a2a2a; border: 2px solid #ef5350; color: #ffcdd2; } 
+  .type-H { background-color: #1a3a5a; border: 2px solid #42a5f5; color: #bbdefb; }
   .type-Goal { background-color: #1b5e20; border: 2px dashed #66bb6a; }
   .current-pos { border: 3px solid #ffab00 !important; box-shadow: 0 0 10px rgba(255, 171, 0, 0.8); z-index: 10; }
   
-  /* マスの中身 (3x3) */
+  /* マスの中身 */
   .sub-cell { display: flex; align-items: center; justify-content: center; }
   .center-char { font-weight: bold; font-size: 16px; }
   .arrow { font-size: 10px; opacity: 0.9; color: #fff; font-weight: bold;}
@@ -61,22 +91,28 @@
 </head>
 <body>
 
-<h1>🎈 Wind Drifter <span style="font-size:0.7em; color:#ffcc00;">(高難易度版)</span></h1>
+<h1>🎈 Wind Drifter <span style="font-size:0.7em; color:#ffcc00;">(高難易度・予報版)</span></h1>
 
 <div class="rules">
-  <p>風を読み、嵐を避けて、西のゴールを目指せ！<br>
-  <span style="color:#ff5252;">※このバージョンは、初期配置の擾乱が増え、毎ターン2つの擾乱が発生するハードモードです。</span></p>
+  <p><span class="bold">＜Next予報システム搭載＞</span><br>
+  盤面の左側に「次に来る擾乱」が表示されています。これをヒントに位置取りを考えましょう。</p>
   <p><span class="bold">＜ルール＞</span></p>
   <ul>
     <li>毎ターンの流れは、「移動」→「偏西風」→「漂流」です。</li>
     <li><span class="bold">「移動」</span>：気球を好きな向きに１マス移動させることができます。</li>
-    <li><span class="bold">「偏西風」</span>：すべての低気圧と高気圧が右に１マス移動します。そして、一番左の列に<span class="bold">最大2つ</span>の新たな高気圧か低気圧が出現します。</li>
-    <li><span class="bold">「漂流」</span>：気球は、周囲の高気圧と低気圧の風の影響を受けて漂流します。漂流後にさらに漂流できる場合は、２回まで漂流します。</li>
+    <li><span class="bold">「偏西風」</span>：すべての擾乱が右に１マス移動します。同時に、<span class="bold">予報エリアにあった擾乱</span>が一番左の列に出現します。</li>
+    <li><span class="bold">「漂流」</span>：気球は、周囲の風の影響を受けて漂流します。漂流後にさらに漂流できる場合は、２回まで漂流します。</li>
   </ul>
-  <p><span class="bold">＜勝利条件＞</span> 移動または漂流で、一番左の列に到達すればクリアになります。低気圧と被さるとゲームオーバー（墜落）になります。</p>
 </div>
 
-<div id="board" class="game-board"></div>
+<div class="game-container">
+  <div class="forecast-area">
+    <div class="forecast-label">NEXT ▶</div>
+    <div id="forecast-grid" class="forecast-grid"></div>
+  </div>
+
+  <div id="board" class="game-board"></div>
+</div>
 
 <div class="control-panel">
   <h3 id="phase-title">1. 移動の操作</h3>
@@ -109,7 +145,6 @@ const COLS = 6;
 const ICON_BALLOON = "🎈";
 const ICON_GOAL = "🏁";
 
-// 風向きデータ
 const L_WIND = {
   "-1,-1": [1, 0],  "-1,0": [1, -1],  "-1,1": [0, -1],
   "0,-1":  [1, 1],                    "0,1":  [-1, -1],
@@ -120,7 +155,7 @@ const H_WIND = {
   "0,-1":  [-1, -1],                  "0,1":  [1, 1],
   "1,-1":  [0, -1], "1,0":  [1, -1],  "1,1":  [1, 0]
 };
-// ベクトルから矢印文字
+
 function vecToArrow(r, c) {
   if (r==0 && c==0) return "";
   if (r==-1 && c==0) return "⬆️"; if (r==1 && c==0) return "⬇️";
@@ -131,9 +166,10 @@ function vecToArrow(r, c) {
 }
 
 // --- ゲーム状態 ---
-let board = {}; // Key: "r,c", Value: "L" or "H"
+let board = {}; 
+let nextSpawns = {}; // Key: "row", Value: "L" or "H" (予報用データ)
 let playerPos = {r: 2, c: 5};
-let phase = "MOVE"; // MOVE, WESTERLIES, DRIFT
+let phase = "MOVE"; 
 let driftStep = 0;
 let gameOver = false;
 let turnCount = 1;
@@ -141,26 +177,48 @@ let turnCount = 1;
 // --- 初期化 ---
 function initGame() {
   board = {};
+  nextSpawns = {}; // 予報初期化
   playerPos = {r: 2, c: 5};
   phase = "MOVE";
   driftStep = 0;
   gameOver = false;
   turnCount = 1;
   document.getElementById("logs").innerHTML = "";
-  addLog("高難易度モード開始！移動方向を決めてください。");
+  addLog("高難易度モード開始！Next予報を確認して移動しましょう。");
   
-  // 初期配置 (高難易度: 左3列に各2つずつ配置)
+  // 初期配置 (左3列)
   for(let c=0; c<3; c++) {
     let placedCount = 0;
     while(placedCount < 2) {
       let r = Math.floor(Math.random() * ROWS);
-      if (!board[`${r},${c}`]) { // 重ならないように
+      if (!board[`${r},${c}`]) {
         board[`${r},${c}`] = Math.random() < 0.4 ? "L" : "H";
         placedCount++;
       }
     }
   }
+
+  // 最初の予報を作成
+  generateNextSpawns();
+  
   render();
+}
+
+// 次の発生(予報データ)を作成する関数
+function generateNextSpawns() {
+  nextSpawns = {};
+  // 高難易度: 最大2つ発生
+  let count = 0;
+  for(let i=0; i<2; i++) {
+    if (Math.random() < 0.8) {
+      let r = Math.floor(Math.random() * ROWS);
+      // 同じ行に重複させない
+      if (!nextSpawns[r]) {
+        nextSpawns[r] = Math.random() < 0.4 ? "L" : "H";
+        count++;
+      }
+    }
+  }
 }
 
 // --- ログ機能 ---
@@ -175,8 +233,6 @@ function addLog(msg) {
 // --- 風計算ロジック ---
 function getWindVector(r, c, currentBoard) {
   let vectors = [];
-  
-  // 1. 上下左右
   let ortho = [[-1,0], [1,0], [0,-1], [0,1]];
   let foundOrtho = false;
   
@@ -193,7 +249,6 @@ function getWindVector(r, c, currentBoard) {
     }
   }
   
-  // 2. 斜め
   if (!foundOrtho) {
     let diag = [[-1,-1], [-1,1], [1,-1], [1,1]];
     for(let d of diag) {
@@ -211,11 +266,9 @@ function getWindVector(r, c, currentBoard) {
   
   if (vectors.length === 0) return [0, 0];
   
-  // 合成
   let resR = 0, resC = 0;
   for(let v of vectors) { resR += v[0]; resC += v[1]; }
   
-  // 丸め
   if (Math.abs(resR)===1 && Math.abs(resC)>=3) { resR=0; resC = resC>0 ? 2 : -2; }
   if (Math.abs(resC)===1 && Math.abs(resR)>=3) { resC=0; resR = resR>0 ? 2 : -2; }
   
@@ -224,7 +277,6 @@ function getWindVector(r, c, currentBoard) {
 
 // --- アクション ---
 
-// 1. 移動
 function actionMove(dr, dc) {
   if (gameOver) return;
   
@@ -245,12 +297,11 @@ function actionMove(dr, dc) {
   render();
 }
 
-// 2. 偏西風 (高難易度: 2回判定)
 function actionWesterlies() {
   if (gameOver) return;
   
+  // 1. 既存の盤面を右シフト
   let newBoard = {};
-  // 右シフト
   for(let key in board) {
     let [br, bc] = key.split(",").map(Number);
     if (bc + 1 < COLS) {
@@ -259,47 +310,43 @@ function actionWesterlies() {
   }
   board = newBoard;
   
-  // 発生 (2回試行)
-  let spawnedCount = 0;
-  for(let i=0; i<2; i++) {
-    if (Math.random() < 0.8) {
-        let spawnR = Math.floor(Math.random() * ROWS);
-        let type = Math.random() < 0.4 ? "L" : "H";
-        // プレイヤー位置回避 & 重なり回避
-        if ((spawnR !== playerPos.r || 0 !== playerPos.c) && !board[`${spawnR},0`]) {
-            board[`${spawnR},0`] = type;
-            addLog(`🌪️ 西から${type === 'L' ? '低気圧' : '高気圧'}が発生。`);
-            spawnedCount++;
-        }
+  // 2. 予報(nextSpawns)にあったものを0列目に配置
+  let spawnedMsg = [];
+  for(let r in nextSpawns) {
+    let type = nextSpawns[r];
+    // プレイヤーがそこにいても、壁になっていなければ出現するルールにします（即死リスク）
+    // もしプレイヤー位置には発生させたくない場合は if (Number(r) !== playerPos.r || playerPos.c !== 0) を追加
+    if (Number(r) !== playerPos.r || playerPos.c !== 0) {
+        board[`${r},0`] = type;
+        spawnedMsg.push(type === 'L' ? '低' : '高');
     }
   }
-  if (spawnedCount === 0) {
-      addLog("💨 新たな擾乱は発生しませんでした。");
-  }
+  
+  if (spawnedMsg.length > 0) addLog(`🌪️ 偏西風により ${spawnedMsg.join(",")} が発生しました。`);
+  else addLog("💨 新たな擾乱は発生しませんでした。");
+
+  // 3. 次の予報を作成
+  generateNextSpawns();
   
   phase = "DRIFT";
   driftStep = 0;
   render();
 }
 
-// 3. 漂流
 function actionDriftStep() {
   if (gameOver) return;
   
   let [wr, wc] = getWindVector(playerPos.r, playerPos.c, board);
   
-  // 風がない場合
   if (wr === 0 && wc === 0) {
     addLog("🍃 近くに風はなく、漂流しませんでした。");
     endDriftPhase();
     return;
   }
   
-  // 移動先
   let nr = playerPos.r + wr;
   let nc = playerPos.c + wc;
   
-  // 壁判定
   if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
     playerPos = {r: nr, c: nc};
     addLog(`🌊 風に流されています... (${wr}, ${wc})`);
@@ -310,7 +357,6 @@ function actionDriftStep() {
     return;
   }
   
-  // L衝突判定
   if (board[`${playerPos.r},${playerPos.c}`] === "L") {
     gameOver = true;
     addLog("💀 低気圧の中心に吸い込まれました... GAME OVER");
@@ -318,7 +364,6 @@ function actionDriftStep() {
     return;
   }
   
-  // 連鎖判定
   let [nextWr, nextWc] = getWindVector(playerPos.r, playerPos.c, board);
   if (driftStep < 2 && (nextWr !== 0 || nextWc !== 0)) {
     addLog("🌪️ まだ風に乗っています。「追加で漂流」してください。");
@@ -344,6 +389,24 @@ function endDriftPhase() {
 
 // --- 描画関数 ---
 function render() {
+  // 1. 予報エリアの描画
+  const forecastDiv = document.getElementById("forecast-grid");
+  forecastDiv.innerHTML = "";
+  for(let r=0; r<ROWS; r++) {
+    let cell = document.createElement("div");
+    cell.className = "forecast-cell";
+    if (nextSpawns[r]) {
+      // 予報がある場合
+      let type = nextSpawns[r];
+      cell.innerText = type === 'L' ? "低" : "高";
+      cell.style.color = type === 'L' ? "#ef5350" : "#42a5f5";
+    } else {
+      cell.innerText = "";
+    }
+    forecastDiv.appendChild(cell);
+  }
+
+  // 2. メイン盤面の描画
   const boardDiv = document.getElementById("board");
   boardDiv.innerHTML = "";
   
