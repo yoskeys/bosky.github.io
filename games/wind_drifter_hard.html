@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wind Drifter (高難易度) - よすきーの部屋</title>
+<style>
+  /* --- デザイン設定 (CSS) --- */
+  body { font-family: sans-serif; background-color: #2b2b2b; color: #f0f0f0; max-width: 900px; margin: 0 auto; padding: 20px; }
+  h1 { text-align: center; color: #ff5252; text-shadow: 2px 2px #000; }
+  .rules { background: #424242; padding: 15px; border-radius: 8px; margin-bottom: 20px; line-height: 1.6; border: 1px solid #ff5252; }
+  .bold { font-weight: bold; color: #ffcc00; }
+  
+  /* ゲームエリア全体 */
+  .game-container {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    /* 横スクロールを防ぐ */
+    overflow-x: auto; 
+    padding-bottom: 10px;
+  }
+
+  /* 予報エリア (左側) */
+  .forecast-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 40px; /* 縮みすぎ防止 */
+  }
+  .forecast-label { font-size: 12px; color: #aaa; margin-bottom: 5px; font-weight: bold; }
+  .forecast-grid {
+    display: grid;
+    grid-template-rows: repeat(5, auto);
+    gap: 4px;
+  }
+  .forecast-cell {
+    width: 60px; height: 60px;
+    border: 2px dashed #777;
+    border-radius: 4px;
+    background-color: #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    opacity: 0.7;
+    transition: all 0.2s; /* サイズ変更を滑らかに */
+  }
+
+  /* 盤面グリッド */
+  .game-board {
+    display: grid;
+    grid-template-columns: repeat(6, auto);
+    gap: 4px;
+  }
+  
+  /* 1マスの設定 */
+  .cell-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    width: 60px; height: 60px;
+    border: 1px solid #555;
+    border-radius: 4px;
+    background-color: #333;
+    font-size: 10px;
+    position: relative;
+    transition: all 0.2s;
+  }
+  
+  /* マスの色分け */
+  .type-L { background-color: #5a2a2a; border: 2px solid #ef5350; color: #ffcdd2; } 
+  .type-H { background-color: #1a3a5a; border: 2px solid #42a5f5; color: #bbdefb; }
+  .type-Goal { background-color: #1b5e20; border: 2px dashed #66bb6a; }
+  .current-pos { border: 3px solid #ffab00 !important; box-shadow: 0 0 10px rgba(255, 171, 0, 0.8); z-index: 10; }
+  
+  /* マスの中身 */
+  .sub-cell { display: flex; align-items: center; justify-content: center; }
+  .center-char { font-weight: bold; font-size: 16px; }
+  .arrow { font-size: 10px; opacity: 0.9; color: #fff; font-weight: bold;}
+  
+  /* 操作パネル */
+  .control-panel { background: #424242; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 20px; }
+  .btn-group { display: grid; grid-template-columns: repeat(3, 50px); gap: 5px; justify-content: center; margin: 10px auto; }
+  button { padding: 10px; cursor: pointer; font-size: 16px; border: 1px solid #777; border-radius: 4px; background: #616161; color: white; }
+  button:hover { background: #757575; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  
+  .action-btn { width: 100%; max-width: 200px; padding: 12px; font-weight: bold; background: #c62828; color: white; border: none; }
+  .action-btn:hover { background: #d32f2f; }
+  
+  /* ログエリア */
+  .log-area { width: 100%; height: 150px; border: 1px solid #555; background: #333; color: #ddd; overflow-y: scroll; padding: 10px; font-family: monospace; font-size: 13px; box-sizing: border-box; }
+  .log-entry { margin-bottom: 4px; border-bottom: 1px dotted #555; }
+
+  /* ★★★ スマホ用レスポンシブ対応 ★★★ */
+  @media (max-width: 600px) {
+    /* マス目のサイズを小さくする (60px -> 40px) */
+    .cell-container, .forecast-cell {
+      width: 40px;
+      height: 40px;
+      font-size: 8px;
+    }
+    .center-char { font-size: 12px; }
+    .arrow { font-size: 8px; }
+    
+    /* 隙間も詰める */
+    .game-board { gap: 2px; }
+    .forecast-grid { gap: 2px; }
+    .game-container { gap: 5px; }
+    
+    body { padding: 10px; }
+  }
+</style>
+</head>
+<body>
+<a href="../minigames.html" style="display:inline-block; margin-bottom:15px; color:#ffcc00; text-decoration:none; font-weight:bold;">
+    ミニゲーム一覧に戻る
+</a>
+
+<h1>🎈 Wind Drifter <span style="font-size:0.7em; color:#ffcc00;">(高難易度)</span></h1>
+
+<div class="rules">
+  <p><span class="bold">＜Next予報システム搭載＞</span><br>
+  盤面の左側に「次に来る擾乱」が表示されています。</p>
+  <p><span class="bold">＜ルール＞</span></p>
+  <ul>
+    <li>毎ターンの流れは、「移動」→「偏西風」→「漂流」です。</li>
+    <li><span class="bold">「移動」</span>：気球を好きな向きに１マス移動させることができます。自分から高気圧の上には乗れません。</li>
+    <li><span class="bold">「偏西風」</span>：すべての擾乱が右に１マス移動します。同時に、<span class="bold">予報エリアにあった擾乱</span>が一番左の列に出現します。</li>
+    <li><span class="bold">「漂流」</span>：気球は、周囲の風の影響を受けて漂流します。漂流後にさらに漂流できる場合は、２回まで漂流します。</li>
+  </ul>
+</div>
+
+<div class="game-container">
+  <div class="forecast-area">
+    <div class="forecast-label">NEXT ▶</div>
+    <div id="forecast-grid" class="forecast-grid"></div>
+  </div>
+
+  <div id="board" class="game-board"></div>
+</div>
+
+<div class="control-panel">
+  <h3 id="phase-title">1. 移動の操作</h3>
+  <div id="controls-move" class="btn-group">
+    <button onclick="actionMove(-1, -1)">↖️</button> <button onclick="actionMove(-1, 0)">⬆️</button> <button onclick="actionMove(-1, 1)">↗️</button>
+    <button onclick="actionMove(0, -1)">⬅️</button> <button onclick="actionMove(0, 0)">⏹️</button> <button onclick="actionMove(0, 1)">➡️</button>
+    <button onclick="actionMove(1, -1)">↙️</button> <button onclick="actionMove(1, 0)">⬇️</button> <button onclick="actionMove(1, 1)">↘️</button>
+  </div>
+  
+  <div id="controls-westerlies" style="display:none;">
+    <button class="action-btn" onclick="actionWesterlies()">🌬️ 偏西風開始</button>
+  </div>
+  
+  <div id="controls-drift" style="display:none;">
+    <button id="btn-drift" class="action-btn" onclick="actionDriftStep()">🌊 漂流開始</button>
+  </div>
+  
+  <div id="controls-reset" style="display:none; margin-top:10px;">
+    <button class="action-btn" style="background:#ff9800; color:black;" onclick="initGame()">🔄 最初からやり直す</button>
+  </div>
+</div>
+
+<div class="bold">履歴</div>
+<div id="logs" class="log-area"></div>
+
+<script>
+// --- 設定と定義 ---
+const ROWS = 5;
+const COLS = 6;
+const ICON_BALLOON = "🎈";
+const ICON_GOAL = "🏁";
+
+const L_WIND = {
+  "-1,-1": [1, 0],  "-1,0": [1, -1],  "-1,1": [0, -1],
+  "0,-1":  [1, 1],                    "0,1":  [-1, -1],
+  "1,-1":  [0, 1],  "1,0":  [-1, 1],  "1,1":  [-1, 0]
+};
+const H_WIND = {
+  "-1,-1": [-1, 0], "-1,0": [-1, 1],  "-1,1": [0, 1],
+  "0,-1":  [-1, -1],                  "0,1":  [1, 1],
+  "1,-1":  [0, -1], "1,0":  [1, -1],  "1,1":  [1, 0]
+};
+
+function vecToArrow(r, c) {
+  if (r==0 && c==0) return "";
+  if (r==-1 && c==0) return "⬆️"; if (r==1 && c==0) return "⬇️";
+  if (r==0 && c==-1) return "⬅️"; if (r==0 && c==1) return "➡️";
+  if (r==-1 && c==-1) return "↖️"; if (r==-1 && c==1) return "↗️";
+  if (r==1 && c==-1) return "↙️"; if (r==1 && c==1) return "↘️";
+  return "";
+}
+
+// --- ゲーム状態 ---
+let board = {}; 
+let nextSpawns = {}; 
+let playerPos = {r: 2, c: 5};
+let phase = "MOVE"; 
+let driftStep = 0;
+let gameOver = false;
+let turnCount = 1;
+
+// --- 初期化 ---
+function initGame() {
+  board = {};
+  nextSpawns = {}; 
+  playerPos = {r: 2, c: 5};
+  phase = "MOVE";
+  driftStep = 0;
+  gameOver = false;
+  turnCount = 1;
+  document.getElementById("logs").innerHTML = "";
+  addLog("高難易度モード開始！");
+  
+  for(let c=0; c<3; c++) {
+    let placedCount = 0;
+    while(placedCount < 2) {
+      let r = Math.floor(Math.random() * ROWS);
+      if (!board[`${r},${c}`]) {
+        board[`${r},${c}`] = Math.random() < 0.4 ? "L" : "H";
+        placedCount++;
+      }
+    }
+  }
+
+  generateNextSpawns();
+  render();
+}
+
+function generateNextSpawns() {
+  nextSpawns = {};
+  let count = 0;
+  for(let i=0; i<2; i++) {
+    if (Math.random() < 0.8) {
+      let r = Math.floor(Math.random() * ROWS);
+      if (!nextSpawns[r]) {
+        nextSpawns[r] = Math.random() < 0.4 ? "L" : "H";
+        count++;
+      }
+    }
+  }
+}
+
+function addLog(msg) {
+  const logDiv = document.getElementById("logs");
+  const entry = document.createElement("div");
+  entry.className = "log-entry";
+  entry.innerText = msg;
+  logDiv.prepend(entry);
+}
+
+function getWindVector(r, c, currentBoard) {
+  let vectors = [];
+  let ortho = [[-1,0], [1,0], [0,-1], [0,1]];
+  let foundOrtho = false;
+  
+  for(let d of ortho) {
+    let tr = r + d[0];
+    let tc = c + d[1];
+    let key = `${tr},${tc}`;
+    if (currentBoard[key]) {
+      let type = currentBoard[key];
+      let relKey = `${-d[0]},${-d[1]}`;
+      let w = (type === "L" ? L_WIND[relKey] : H_WIND[relKey]) || [0,0];
+      vectors.push(w);
+      foundOrtho = true;
+    }
+  }
+  
+  if (!foundOrtho) {
+    let diag = [[-1,-1], [-1,1], [1,-1], [1,1]];
+    for(let d of diag) {
+      let tr = r + d[0];
+      let tc = c + d[1];
+      let key = `${tr},${tc}`;
+      if (currentBoard[key]) {
+        let type = currentBoard[key];
+        let relKey = `${-d[0]},${-d[1]}`;
+        let w = (type === "L" ? L_WIND[relKey] : H_WIND[relKey]) || [0,0];
+        vectors.push(w);
+      }
+    }
+  }
+  
+  if (vectors.length === 0) return [0, 0];
+  
+  let resR = 0, resC = 0;
+  for(let v of vectors) { resR += v[0]; resC += v[1]; }
+  
+  if (Math.abs(resR)===1 && Math.abs(resC)>=3) { resR=0; resC = resC>0 ? 2 : -2; }
+  if (Math.abs(resC)===1 && Math.abs(resR)>=3) { resC=0; resR = resR>0 ? 2 : -2; }
+  
+  return [resR, resC];
+}
+
+// --- アクション ---
+
+function actionMove(dr, dc) {
+  if (gameOver) return;
+  
+  let pr = playerPos.r;
+  let pc = playerPos.c;
+  let nr = Math.max(0, Math.min(ROWS-1, pr + dr));
+  let nc = Math.max(0, Math.min(COLS-1, pc + dc));
+  
+  if (board[`${nr},${nc}`] === "H") {
+    addLog("⚠️ 高気圧の壁に阻まれました！(移動キャンセル)");
+  } else {
+    playerPos = {r: nr, c: nc};
+    if (dr===0 && dc===0) addLog("🛑 待機しました。");
+    else addLog("🎈 気球を操作しました。");
+  }
+  
+  phase = "WESTERLIES";
+  render();
+}
+
+function actionWesterlies() {
+  if (gameOver) return;
+  
+  let newBoard = {};
+  for(let key in board) {
+    let [br, bc] = key.split(",").map(Number);
+    if (bc + 1 < COLS) {
+      newBoard[`${br},${bc+1}`] = board[key];
+    }
+  }
+  board = newBoard;
+  
+  let spawnedMsg = [];
+  for(let r in nextSpawns) {
+    let type = nextSpawns[r];
+    if (Number(r) !== playerPos.r || playerPos.c !== 0) {
+        board[`${r},0`] = type;
+        spawnedMsg.push(type === 'L' ? '低' : '高');
+    }
+  }
+  
+  if (spawnedMsg.length > 0) addLog(`🌪️ 偏西風により ${spawnedMsg.join(",")} が発生しました。`);
+  else addLog("💨 新たな擾乱は発生しませんでした。");
+
+  generateNextSpawns();
+  
+  phase = "DRIFT";
+  driftStep = 0;
+  render();
+}
+
+function actionDriftStep() {
+  if (gameOver) return;
+  
+  let [wr, wc] = getWindVector(playerPos.r, playerPos.c, board);
+  
+  if (wr === 0 && wc === 0) {
+    addLog("🍃 近くに風はなく、漂流しませんでした。");
+    endDriftPhase();
+    return;
+  }
+  
+  let nr = playerPos.r + wr;
+  let nc = playerPos.c + wc;
+  
+  // 壁判定: 範囲外なら移動せずにストップ (壁判定修正済み)
+  if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+    playerPos = {r: nr, c: nc};
+    addLog(`🌊 風に流されています... (${wr}, ${wc})`);
+    driftStep++;
+  } else {
+    addLog("🧱 壁にぶつかり、漂流できませんでした。");
+    endDriftPhase();
+    return;
+  }
+  
+  if (board[`${playerPos.r},${playerPos.c}`] === "L") {
+    gameOver = true;
+    addLog("💀 低気圧の中心に吸い込まれました... GAME OVER");
+    render();
+    return;
+  }
+  
+  let [nextWr, nextWc] = getWindVector(playerPos.r, playerPos.c, board);
+  if (driftStep < 2 && (nextWr !== 0 || nextWc !== 0)) {
+    addLog("🌪️ まだ風に乗っています。「追加で漂流」してください。");
+    render(); 
+  } else {
+    addLog("⚓️ 漂流が止まりました。");
+    endDriftPhase();
+  }
+}
+
+function endDriftPhase() {
+  if (playerPos.c === 0) {
+    gameOver = true;
+    addLog("🎉 ゴール到達！ CLEAR!!");
+    render();
+    return;
+  }
+  phase = "MOVE";
+  turnCount++;
+  addLog(`--- ターン ${turnCount} 開始 ---`);
+  render();
+}
+
+// --- 描画関数 ---
+function render() {
+  const forecastDiv = document.getElementById("forecast-grid");
+  forecastDiv.innerHTML = "";
+  for(let r=0; r<ROWS; r++) {
+    let cell = document.createElement("div");
+    cell.className = "forecast-cell";
+    if (nextSpawns[r]) {
+      let type = nextSpawns[r];
+      cell.innerText = type === 'L' ? "低" : "高";
+      cell.style.color = type === 'L' ? "#ef5350" : "#42a5f5";
+    } else {
+      cell.innerText = "";
+    }
+    forecastDiv.appendChild(cell);
+  }
+
+  const boardDiv = document.getElementById("board");
+  boardDiv.innerHTML = "";
+  
+  for(let r=0; r<ROWS; r++) {
+    for(let c=0; c<COLS; c++) {
+      let cell = document.createElement("div");
+      cell.className = "cell-container";
+      
+      let type = board[`${r},${c}`];
+      if (type === "L") cell.classList.add("type-L");
+      else if (type === "H") cell.classList.add("type-H");
+      else if (c === 0) cell.classList.add("type-Goal");
+      
+      if (playerPos.r === r && playerPos.c === c) cell.classList.add("current-pos");
+      
+      for(let dr=-1; dr<=1; dr++) {
+        for(let dc=-1; dc<=1; dc++) {
+          let sub = document.createElement("div");
+          sub.className = "sub-cell";
+          
+          if (dr===0 && dc===0) { 
+            sub.classList.add("center-char");
+            if (playerPos.r === r && playerPos.c === c) sub.innerText = ICON_BALLOON;
+            else if (type === "L") sub.innerText = "低";
+            else if (type === "H") sub.innerText = "高";
+            else if (c === 0) sub.innerText = ICON_GOAL;
+          } else if (type) { 
+            let w = (type === "L" ? L_WIND[`${dr},${dc}`] : H_WIND[`${dr},${dc}`]) || [0,0];
+            let arrow = vecToArrow(w[0], w[1]);
+            if (arrow) {
+              sub.innerText = arrow;
+              sub.classList.add("arrow");
+            }
+          }
+          cell.appendChild(sub);
+        }
+      }
+      boardDiv.appendChild(cell);
+    }
+  }
+  
+  document.getElementById("controls-move").style.display = "none";
+  document.getElementById("controls-westerlies").style.display = "none";
+  document.getElementById("controls-drift").style.display = "none";
+  document.getElementById("controls-reset").style.display = gameOver ? "block" : "none";
+  
+  let pTitle = document.getElementById("phase-title");
+  
+  if (!gameOver) {
+    if (phase === "MOVE") {
+      pTitle.innerText = "1. 移動の操作";
+      document.getElementById("controls-move").style.display = "grid";
+    } else if (phase === "WESTERLIES") {
+      pTitle.innerText = "2. 偏西風";
+      document.getElementById("controls-westerlies").style.display = "block";
+    } else if (phase === "DRIFT") {
+      pTitle.innerText = driftStep === 0 ? "3. 漂流 (1回目)" : "3. 漂流 (2回目)";
+      let btn = document.getElementById("btn-drift");
+      btn.innerText = driftStep === 0 ? "🌊 漂流開始" : "🌊🌊 追加で漂流";
+      document.getElementById("controls-drift").style.display = "block";
+    }
+  } else {
+    pTitle.innerText = "ゲーム終了";
+  }
+}
+
+initGame();
+</script>
+</body>
+</html>
