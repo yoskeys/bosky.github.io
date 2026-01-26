@@ -76,8 +76,7 @@
     <li>りんごは風で流されず、低気圧や高気圧と重なっても消えません。</li>
     <li>毎ターンの流れは、「移動」→「偏西風」→「漂流」です。</li>
   </ul>
-  <p><span class="bold">＜勝利条件＞</span> 移動または漂流で、<span class="bold">「りんご」と同じマス</span>に到達すればクリアです！<br>
-  （単に左端に行くだけではクリアになりません）</p>
+  <p><span class="bold">＜勝利条件＞</span> 移動または漂流で、<span class="bold">「りんご」と同じマス</span>に到達すればクリアです！</p>
 </div>
 
 <div class="turn-wrapper">
@@ -136,7 +135,7 @@ let applePos = {r: 0, c: 0};
 let phase = "MOVE";
 let driftStep = 0;
 let gameOver = false;
-let gameWon = false; // クリア判定用フラグ
+let gameWon = false; 
 let turnCount = 1;
 
 // --- 初期化 ---
@@ -225,7 +224,7 @@ function getWindVector(r, c, currentBoard) {
 function checkWin() {
     if (playerPos.r === applePos.r && playerPos.c === applePos.c) {
         gameOver = true;
-        gameWon = true; // 勝利フラグON
+        gameWon = true; 
         addLog(`🍎 りんごをゲット！ (記録: ${turnCount}ターン) CLEAR!!`);
         render();
         return true;
@@ -287,6 +286,17 @@ function actionWesterlies() {
 
 function actionDriftStep() {
   if (gameOver) return;
+
+  // 【修正】漂流開始時にすでにLにいる場合(偏西風で重なった、移動で入った)のチェック
+  if (board[`${playerPos.r},${playerPos.c}`] === "L") {
+    // もしゴールとりんごが重なっていた場合、checkWinが先に走っていないならここで負け
+    // (通常はmove時にcheckWinが走るが、WesterliesでLが重なった場合はここで判定)
+    gameOver = true;
+    gameWon = false;
+    addLog("💀 低気圧の中心に吸い込まれました... GAME OVER");
+    render();
+    return;
+  }
   
   let [wr, wc] = getWindVector(playerPos.r, playerPos.c, board);
   
@@ -310,9 +320,10 @@ function actionDriftStep() {
     return;
   }
   
+  // 【修正】漂流移動後のL判定
   if (board[`${playerPos.r},${playerPos.c}`] === "L") {
     gameOver = true;
-    gameWon = false; // 敗北
+    gameWon = false; 
     addLog("💀 低気圧の中心に吸い込まれました... GAME OVER");
     render();
     return;

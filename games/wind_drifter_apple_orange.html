@@ -64,12 +64,12 @@
 </head>
 <body>
 
-<a href="../minigames.html" class="back-link">ミニゲーム一覧に戻る</a>
+<a href="../minigames.html" class="back-link">← ミニゲーム一覧に戻る</a>
 
 <h1>🎈 Wind Drifter <span style="font-size:0.7em; color:#ff7043;">(りんごみかん)</span></h1>
 
 <div class="rules">
-  <p><span class="bold">＜りんご・みかんモード＞</span></p>
+  <p><span class="bold">＜りんごみかんモード＞</span></p>
   <ul>
     <li>【Step 1】 左側エリアに出現する<span class="bold" style="color:#ff5252;">「りんご(🍎)」</span>を取る。</li>
     <li>【Step 2】 すると右側エリアに<span class="bold" style="color:#ff9800;">「みかん(🍊)」</span>が出現するので、それを取ればクリア！</li>
@@ -307,6 +307,15 @@ function actionWesterlies() {
 function actionDriftStep() {
   if (gameOver) return;
   
+  // 【修正】漂流開始時(風チェック前)にLにいる場合
+  if (board[`${playerPos.r},${playerPos.c}`] === "L") {
+    gameOver = true;
+    gameWon = false;
+    addLog("💀 低気圧の中心に吸い込まれました... GAME OVER");
+    render();
+    return;
+  }
+  
   let [wr, wc] = getWindVector(playerPos.r, playerPos.c, board);
   
   if (wr === 0 && wc === 0) {
@@ -331,6 +340,7 @@ function actionDriftStep() {
     return;
   }
   
+  // 【修正】漂流移動後のL判定
   if (board[`${playerPos.r},${playerPos.c}`] === "L") {
     gameOver = true;
     gameWon = false;
