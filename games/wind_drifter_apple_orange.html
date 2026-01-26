@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Wind Drifter (Apple Ver.) - よすきーの部屋</title>
+<title>Wind Drifter (Apple & Mandarin) - よすきーの部屋</title>
 <style>
-  /* --- デザイン設定 (CSS: 穏やかな空のテーマ) --- */
+  /* --- デザイン設定 (CSS) --- */
   body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f8ff; color: #455a64; max-width: 800px; margin: 0 auto; padding: 20px; }
   a.back-link { display: inline-block; margin-bottom: 15px; color: #78909c; text-decoration: none; font-size: 0.9em; }
   h1 { text-align: center; color: #ff7043; margin-top: 0; margin-bottom: 10px; text-shadow: 1px 1px 0px #fff; }
@@ -31,8 +31,8 @@
   
   .type-L { background-color: #ffebee; border: 2px solid #ef9a9a; color: #c62828; } 
   .type-H { background-color: #e3f2fd; border: 2px solid #90caf9; color: #1565c0; } 
-  .type-GoalArea { background-color: #fffbe6; border: 1px dashed #ffd54f; }
-  .type-Apple { box-shadow: inset 0 0 15px rgba(255, 215, 0, 0.5); border: 2px solid #ffd700; }
+  .type-TargetArea { background-color: #fffbe6; border: 1px dashed #ffd54f; }
+  .type-Item { box-shadow: inset 0 0 15px rgba(255, 165, 0, 0.5); border: 2px solid #ff9800; }
   .current-pos { border: 3px solid #ffb74d !important; box-shadow: 0 0 10px rgba(255, 183, 77, 0.8); z-index: 10; transform: scale(1.05); }
   
   .sub-cell { display: flex; align-items: center; justify-content: center; }
@@ -66,18 +66,15 @@
 
 <a href="../minigames.html" class="back-link">ミニゲーム一覧に戻る</a>
 
-<h1>🎈 Wind Drifter <span style="font-size:0.7em; color:#ff7043;">(りんご)</span></h1>
+<h1>🎈 Wind Drifter <span style="font-size:0.7em; color:#ff7043;">(りんごみかん)</span></h1>
 
 <div class="rules">
-  <p>あなたは気球を操作し、風に乗って<span class="bold" style="color:#ff7043;">「りんご(🍎)」</span>を目指します。</p>
-  <p><span class="bold">＜ルール＞</span></p>
+  <p><span class="bold">＜りんご・みかんモード＞</span></p>
   <ul>
-    <li>盤面の<span class="bold">左側エリア（点線内）</span>のどこかにりんごが出現します。</li>
-    <li>りんごは風で流されず、低気圧や高気圧と重なっても消えません。</li>
-    <li>毎ターンの流れは、「移動」→「偏西風」→「漂流」です。</li>
+    <li>【Step 1】 左側エリアに出現する<span class="bold" style="color:#ff5252;">「りんご(🍎)」</span>を取る。</li>
+    <li>【Step 2】 すると右側エリアに<span class="bold" style="color:#ff9800;">「みかん(🍊)」</span>が出現するので、それを取ればクリア！</li>
   </ul>
-  <p><span class="bold">＜勝利条件＞</span> 移動または漂流で、<span class="bold">「りんご」と同じマス</span>に到達すればクリアです！<br>
-  （単に左端に行くだけではクリアになりません）</p>
+  <p>※フルーツは風で流されず、低気圧や高気圧と重なっても消えません。</p>
 </div>
 
 <div class="turn-wrapper">
@@ -116,6 +113,7 @@ const ROWS = 5;
 const COLS = 6;
 const ICON_BALLOON = "🎈";
 const ICON_APPLE = "🍎";
+const ICON_MANDARIN = "🍊";
 
 const L_WIND = { "-1,-1": [1, 0], "-1,0": [1, -1], "-1,1": [0, -1], "0,-1": [1, 1], "0,1": [-1, -1], "1,-1": [0, 1], "1,0": [-1, 1], "1,1": [-1, 0] };
 const H_WIND = { "-1,-1": [-1, 0], "-1,0": [-1, 1], "-1,1": [0, 1], "0,-1": [-1, -1], "0,1": [1, 1], "1,-1": [0, -1], "1,0": [1, -1], "1,1": [1, 0] };
@@ -132,11 +130,12 @@ function vecToArrow(r, c) {
 // --- ゲーム状態 ---
 let board = {}; 
 let playerPos = {r: 2, c: 5};
-let applePos = {r: 0, c: 0}; 
+let targetPos = {r: 0, c: 0}; 
+let gameStage = "APPLE"; // "APPLE" -> "MANDARIN" -> "CLEARED"
 let phase = "MOVE";
 let driftStep = 0;
 let gameOver = false;
-let gameWon = false; // クリア判定用フラグ
+let gameWon = false;
 let turnCount = 1;
 
 // --- 初期化 ---
@@ -144,20 +143,21 @@ function initGame() {
   board = {};
   playerPos = {r: 2, c: 5};
   phase = "MOVE";
+  gameStage = "APPLE";
   driftStep = 0;
   gameOver = false;
   gameWon = false;
   turnCount = 1;
   updateTurnDisplay();
   document.getElementById("logs").innerHTML = "";
-  addLog("ゲーム開始！🍎を目指してください。");
+  addLog("ゲーム開始！まずは左の 🍎 を目指せ！");
   
   for(let c=0; c<3; c++) {
     let r = Math.floor(Math.random() * ROWS);
     board[`${r},${c}`] = Math.random() < 0.4 ? "L" : "H";
   }
 
-  applePos = {
+  targetPos = {
       r: Math.floor(Math.random() * ROWS),
       c: Math.floor(Math.random() * 2)
   };
@@ -221,14 +221,33 @@ function getWindVector(r, c, currentBoard) {
   return [resR, resC];
 }
 
-// --- 勝利判定 ---
-function checkWin() {
-    if (playerPos.r === applePos.r && playerPos.c === applePos.c) {
-        gameOver = true;
-        gameWon = true; // 勝利フラグON
-        addLog(`🍎 りんごをゲット！ (記録: ${turnCount}ターン) CLEAR!!`);
-        render();
-        return true;
+// --- アイテム判定ロジック ---
+function checkItem() {
+    if (gameStage === "CLEARED") return true;
+
+    if (playerPos.r === targetPos.r && playerPos.c === targetPos.c) {
+        if (gameStage === "APPLE") {
+            // りんごゲット -> みかん出現
+            addLog("🍎 りんごゲット！次は右の 🍊 を探せ！");
+            gameStage = "MANDARIN";
+            
+            targetPos = {
+                r: Math.floor(Math.random() * ROWS),
+                c: COLS - 1 - Math.floor(Math.random() * 2) 
+            };
+            
+            render();
+            return false; 
+
+        } else if (gameStage === "MANDARIN") {
+            // みかんゲット -> クリア
+            gameOver = true;
+            gameWon = true; // 勝利フラグON
+            gameStage = "CLEARED";
+            addLog(`🍊 みかんゲット！ (記録: ${turnCount}ターン) CLEAR!!`);
+            render();
+            return true;
+        }
     }
     return false;
 }
@@ -251,7 +270,7 @@ function actionMove(dr, dc) {
     else addLog("🎈 気球を操作しました。");
   }
 
-  if (checkWin()) return;
+  if (checkItem() && gameStage === "CLEARED") return;
   
   phase = "WESTERLIES";
   render();
@@ -302,7 +321,9 @@ function actionDriftStep() {
   if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
     playerPos = {r: nr, c: nc};
     addLog(`🌊 風に流されています... (${wr}, ${wc})`);
-    if (checkWin()) return;
+
+    if (checkItem() && gameStage === "CLEARED") return;
+
     driftStep++;
   } else {
     addLog("🧱 壁にぶつかり、漂流できませんでした。");
@@ -312,7 +333,7 @@ function actionDriftStep() {
   
   if (board[`${playerPos.r},${playerPos.c}`] === "L") {
     gameOver = true;
-    gameWon = false; // 敗北
+    gameWon = false;
     addLog("💀 低気圧の中心に吸い込まれました... GAME OVER");
     render();
     return;
@@ -350,8 +371,18 @@ function render() {
       if (type === "L") cell.classList.add("type-L");
       else if (type === "H") cell.classList.add("type-H");
       
-      if (r === applePos.r && c === applePos.c) cell.classList.add("type-Apple");
-      if (c <= 1) cell.classList.add("type-GoalArea");
+      // ターゲット位置
+      let isTargetPos = (r === targetPos.r && c === targetPos.c && gameStage !== "CLEARED");
+      if (isTargetPos) {
+          cell.classList.add("type-Item");
+      }
+      
+      if (gameStage === "APPLE") {
+        if (c <= 1) cell.classList.add("type-TargetArea");
+      } else if (gameStage === "MANDARIN") {
+        if (c >= COLS - 2) cell.classList.add("type-TargetArea");
+      }
+      
       if (playerPos.r === r && playerPos.c === c) cell.classList.add("current-pos");
       
       for(let dr=-1; dr<=1; dr++) {
@@ -361,10 +392,16 @@ function render() {
           
           if (dr===0 && dc===0) { 
             sub.classList.add("center-char");
-            if (playerPos.r === r && playerPos.c === c) sub.innerText = ICON_BALLOON;
-            else if (r === applePos.r && c === applePos.c) sub.innerText = ICON_APPLE;
-            else if (type === "L") sub.innerText = "低";
-            else if (type === "H") sub.innerText = "高";
+            // 表示優先順位: プレイヤー > アイテム > L/H
+            if (playerPos.r === r && playerPos.c === c) {
+                sub.innerText = ICON_BALLOON;
+            } else if (isTargetPos) {
+                sub.innerText = (gameStage === "APPLE") ? ICON_APPLE : ICON_MANDARIN;
+            } else if (type === "L") {
+                sub.innerText = "低";
+            } else if (type === "H") {
+                sub.innerText = "高";
+            }
           } else if (type) { 
             let w = (type === "L" ? L_WIND[`${dr},${dc}`] : H_WIND[`${dr},${dc}`]) || [0,0];
             let arrow = vecToArrow(w[0], w[1]);
