@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wind Drifter (うさぎモード) - よすきーの部屋</title>
+<style>
+  /* --- デザイン設定 (通常盤と同じCSS) --- */
+  body { font-family: sans-serif; background-color: #fdfdfd; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
+  a.back-link { display: inline-block; margin-bottom: 15px; color: #0056b3; text-decoration: none; }
+  h1 { text-align: center; color: #333; margin-top: 0; margin-bottom: 10px;}
+  
+  .turn-indicator {
+    text-align: center; font-size: 1.2rem; font-weight: bold; color: #0056b3;
+    margin-bottom: 15px; padding: 5px; background-color: #e3f2fd;
+    border-radius: 4px; display: inline-block;
+  }
+  .turn-wrapper { text-align: center; }
+
+  .rules { background: #f0f8ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; line-height: 1.6; }
+  .bold { font-weight: bold; color: #e91e63; } /* うさぎモードの強調色 */
+  
+  .game-board { display: grid; grid-template-columns: repeat(6, auto); gap: 4px; justify-content: center; margin-bottom: 20px; }
+  
+  .cell-container {
+    display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+    width: 60px; height: 60px; border: 1px solid #ccc; border-radius: 4px;
+    background-color: #f8f9fa; font-size: 10px; position: relative;
+  }
+  
+  .type-L { background-color: #ffebee; border: 2px solid #f44336; color: #b71c1c; } 
+  .type-H { background-color: #e3f2fd; border: 2px solid #2196f3; color: #0d47a1; } 
+  
+  /* うさぎのいるマスを少し強調 */
+  .rabbit-pos { box-shadow: inset 0 0 10px rgba(255, 105, 180, 0.4); border: 2px solid #ff69b4; }
+  .current-pos { border: 3px solid #ff9800 !important; box-shadow: 0 0 8px rgba(255, 152, 0, 0.6); z-index: 10; }
+  
+  .sub-cell { display: flex; align-items: center; justify-content: center; }
+  .center-char { font-weight: bold; font-size: 16px; }
+  .arrow { font-size: 10px; opacity: 0.7; color: #333; font-weight: bold;}
+  
+  .control-panel { background: #eee; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 20px; }
+  .btn-group { display: grid; grid-template-columns: repeat(3, 50px); gap: 5px; justify-content: center; margin: 10px auto; }
+  button { padding: 10px; cursor: pointer; font-size: 16px; border: 1px solid #999; border-radius: 4px; background: #fff; }
+  button:hover { background: #e0e0e0; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  
+  .action-btn { width: 100%; max-width: 200px; padding: 12px; font-weight: bold; background: #2196f3; color: white; border: none; }
+  .action-btn:hover { background: #1976d2; }
+  
+  .log-area { width: 100%; height: 150px; border: 1px solid #ccc; background: #fff; overflow-y: scroll; padding: 10px; font-family: monospace; font-size: 13px; box-sizing: border-box; }
+  .log-entry { margin-bottom: 4px; border-bottom: 1px dotted #eee; }
+
+  @media (max-width: 600px) {
+    .cell-container { width: 45px; height: 45px; font-size: 8px; }
+    .btn-group { grid-template-columns: repeat(3, 45px); }
+    button { padding: 8px; font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<a href="../minigames.html" class="back-link">← ミニゲーム一覧に戻る</a>
+
+<h1>🎈 Wind Drifter <span style="font-size:0.8em; color:#e91e63;">(うさぎ)</span></h1>
+
+<div class="rules">
+  <p>風に乗って逃げ回る<span class="bold">「うさぎ(🐰)」</span>を捕まえる鬼ごっこモードです。</p>
+  <p><span class="bold">＜ルール＞</span></p>
+  <ul>
+    <li><span class="bold">勝利条件</span>：移動や漂流で、うさぎと同じマスに入ること。</li>
+    <li><span class="bold">敗北条件</span>：プレイヤーまたは<span class="bold" style="color:#f44336;">うさぎが低気圧(L)の中心に入ってしまう</span>こと。</li>
+    <li>うさぎは、あなたが動いた直後に「あなたから遠ざかる方向」へ逃げます。</li>
+    <li>うさぎも風の影響を受けて漂流します。低気圧に飛び込まないように誘導しましょう。</li>
+  </ul>
+</div>
+
+<div class="turn-wrapper">
+    <div class="turn-indicator">現在のターン: <span id="turn-num">1</span></div>
+</div>
+
+<div id="board" class="game-board"></div>
+
+<div class="control-panel">
+  <h3 id="phase-title">1. 移動の操作</h3>
+  <div id="controls-move" class="btn-group">
+    <button onclick="actionMove(-1, -1)">↖️</button> <button onclick="actionMove(-1, 0)">⬆️</button> <button onclick="actionMove(-1, 1)">↗️</button>
+    <button onclick="actionMove(0, -1)">⬅️</button> <button onclick="actionMove(0, 0)">⏹️</button> <button onclick="actionMove(0, 1)">➡️</button>
+    <button onclick="actionMove(1, -1)">↙️</button> <button onclick="actionMove(1, 0)">⬇️</button> <button onclick="actionMove(1, 1)">↘️</button>
+  </div>
+  
+  <div id="controls-westerlies" style="display:none;">
+    <button class="action-btn" onclick="actionWesterlies()">🌬️ 偏西風開始</button>
+  </div>
+  
+  <div id="controls-drift" style="display:none;">
+    <button id="btn-drift" class="action-btn" onclick="actionDriftStep()">🌊 漂流開始</button>
+  </div>
+  
+  <div id="controls-reset" style="display:none; margin-top:10px;">
+    <button id="btn-reset" class="action-btn" style="background:#f44336;" onclick="initGame()">🔄 最初からやり直す</button>
+  </div>
+</div>
+
+<div class="bold">履歴</div>
+<div id="logs" class="log-area"></div>
+
+<script>
+// --- 設定と定義 ---
+const ROWS = 5;
+const COLS = 6;
+const ICON_BALLOON = "🎈";
+const ICON_RABBIT = "🐰"; // うさぎアイコン
+
+const L_WIND = { "-1,-1": [1, 0], "-1,0": [1, -1], "-1,1": [0, -1], "0,-1": [1, 1], "0,1": [-1, -1], "1,-1": [0, 1], "1,0": [-1, 1], "1,1": [-1, 0] };
+const H_WIND = { "-1,-1": [-1, 0], "-1,0": [-1, 1], "-1,1": [0, 1], "0,-1": [-1, -1], "0,1": [1, 1], "1,-1": [0, -1], "1,0": [1, -1], "1,1": [1, 0] };
+
+function vecToArrow(r, c) {
+  if (r==0 && c==0) return "";
+  if (r==-1 && c==0) return "⬆️"; if (r==1 && c==0) return "⬇️";
+  if (r==0 && c==-1) return "⬅️"; if (r==0 && c==1) return "➡️";
+  if (r==-1 && c==-1) return "↖️"; if (r==-1 && c==1) return "↗️";
+  if (r==1 && c==-1) return "↙️"; if (r==1 && c==1) return "↘️";
+  return "";
+}
+
+// --- ゲーム状態 ---
+let board = {}; 
+let playerPos = {r: 2, c: 5};
+let rabbitPos = {r: 2, c: 0}; // うさぎの初期位置（左側）
+let phase = "MOVE";
+let driftStep = 0;
+let gameOver = false;
+let gameWon = false;
+let turnCount = 1;
+
+// --- 初期化 ---
+function initGame() {
+  board = {};
+  playerPos = {r: Math.floor(ROWS/2), c: COLS-1}; // プレイヤーは右端中央
+  rabbitPos = {r: Math.floor(ROWS/2), c: 0};      // うさぎは左端中央
+  phase = "MOVE";
+  driftStep = 0;
+  gameOver = false;
+  gameWon = false;
+  turnCount = 1;
+  updateTurnDisplay();
+  document.getElementById("logs").innerHTML = "";
+  addLog("ゲーム開始！🐰を捕まえてください。（低気圧に注意！）");
+  
+  // 初期配置（プレイヤーとうさぎの位置は避ける）
+  for(let c=0; c<3; c++) {
+    let placed = false;
+    while(!placed) {
+        let r = Math.floor(Math.random() * ROWS);
+        if ((r !== playerPos.r || c !== playerPos.c) && (r !== rabbitPos.r || c !== rabbitPos.c)) {
+            board[`${r},${c}`] = Math.random() < 0.4 ? "L" : "H";
+            placed = true;
+        }
+    }
+  }
+
+  render();
+}
+
+function updateTurnDisplay() {
+    document.getElementById("turn-num").innerText = turnCount;
+}
+
+function addLog(msg) {
+  const logDiv = document.getElementById("logs");
+  const entry = document.createElement("div");
+  entry.className = "log-entry";
+  entry.innerText = msg;
+  logDiv.prepend(entry);
+}
+
+function getWindVector(r, c, currentBoard) {
+  let vectors = [];
+  let ortho = [[-1,0], [1,0], [0,-1], [0,1]];
+  let foundOrtho = false;
+  
+  for(let d of ortho) {
+    let tr = r + d[0];
+    let tc = c + d[1];
+    let key = `${tr},${tc}`;
+    if (currentBoard[key]) {
+      let type = currentBoard[key];
+      let relKey = `${-d[0]},${-d[1]}`;
+      let w = (type === "L" ? L_WIND[relKey] : H_WIND[relKey]) || [0,0];
+      vectors.push(w);
+      foundOrtho = true;
+    }
+  }
+  
+  if (!foundOrtho) {
+    let diag = [[-1,-1], [-1,1], [1,-1], [1,1]];
+    for(let d of diag) {
+      let tr = r + d[0];
+      let tc = c + d[1];
+      let key = `${tr},${tc}`;
+      if (currentBoard[key]) {
+        let type = currentBoard[key];
+        let relKey = `${-d[0]},${-d[1]}`;
+        let w = (type === "L" ? L_WIND[relKey] : H_WIND[relKey]) || [0,0];
+        vectors.push(w);
+      }
+    }
+  }
+  
+  if (vectors.length === 0) return [0, 0];
+  
+  let resR = 0, resC = 0;
+  for(let v of vectors) { resR += v[0]; resC += v[1]; }
+  
+  if (Math.abs(resR)===1 && Math.abs(resC)>=3) { resR=0; resC = resC>0 ? 2 : -2; }
+  if (Math.abs(resC)===1 && Math.abs(resR)>=3) { resC=0; resR = resR>0 ? 2 : -2; }
+  
+  return [resR, resC];
+}
+
+// --- 判定ロジック ---
+function checkWin() {
+    if (playerPos.r === rabbitPos.r && playerPos.c === rabbitPos.c) {
+        gameOver = true;
+        gameWon = true;
+        addLog(`🎉 うさぎを捕まえた！ (記録: ${turnCount}ターン) CLEAR!!`);
+        render();
+        return true;
+    }
+    return false;
+}
+
+function checkLDeath(pos, who) {
+    if (board[`${pos.r},${pos.c}`] === "L") {
+        gameOver = true;
+        gameWon = false;
+        let msg = who === "player" ? "💀 あなたは低気圧に吸い込まれました..." : "😱 うさぎが低気圧に飛び込んでしまった！(保護失敗)";
+        addLog(msg + " GAME OVER");
+        render();
+        return true;
+    }
+    return false;
+}
+
+// --- うさぎAI ---
+function moveRabbitAI() {
+    if (gameOver) return;
+
+    // プレイヤーから遠ざかる方向を計算 (単純な逆ベクトル)
+    let dr = rabbitPos.r - playerPos.r;
+    let dc = rabbitPos.c - playerPos.c;
+    
+    // -1, 0, 1 に正規化
+    let moveR = Math.sign(dr);
+    let moveC = Math.sign(dc);
+
+    // 移動先候補
+    let nr = rabbitPos.r + moveR;
+    let nc = rabbitPos.c + moveC;
+
+    // 壁(H)や盤面外チェック
+    if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS || board[`${nr},${nc}`] === "H") {
+        // 動けない場合はその場に留まる（単純化のため）
+        addLog("🐰 うさぎは逃げ場がなく、震えている。(待機)");
+    } else {
+        // 移動実行（危険なLであっても突っ込む！）
+        rabbitPos = {r: nr, c: nc};
+        addLog(`🐰 うさぎが逃げた！`);
+    }
+
+    // 移動後の判定
+    if (checkWin()) return; // 自ら飛び込んできた場合
+    if (checkLDeath(rabbitPos, "rabbit")) return; // 自滅した場合
+
+    // フェーズを偏西風へ
+    phase = "WESTERLIES";
+    render();
+}
+
+
+// --- アクション ---
+
+// 1. プレイヤー移動
+function actionMove(dr, dc) {
+  if (gameOver) return;
+  
+  let nr = Math.max(0, Math.min(ROWS-1, playerPos.r + dr));
+  let nc = Math.max(0, Math.min(COLS-1, playerPos.c + dc));
+  
+  if (board[`${nr},${nc}`] === "H") {
+    addLog("⚠️ 高気圧の壁に阻まれました！(移動キャンセル)");
+    // 移動できなくてもうさぎは動くことにする
+  } else {
+    playerPos = {r: nr, c: nc};
+    if (dr===0 && dc===0) addLog("🛑 待機しました。");
+    else addLog("🎈 気球を操作しました。");
+  }
+
+  if (checkWin()) return; // 移動して捕まえた
+
+  // プレイヤー移動後にうさぎが動く
+  setTimeout(moveRabbitAI, 300); // 少しウェイトを入れて見やすく
+}
+
+// 2. 偏西風 (既存通り)
+function actionWesterlies() {
+  if (gameOver) return;
+  
+  let newBoard = {};
+  for(let key in board) {
+    let [br, bc] = key.split(",").map(Number);
+    if (bc + 1 < COLS) {
+      newBoard[`${br},${bc+1}`] = board[key];
+    }
+  }
+  board = newBoard;
+  
+  if (Math.random() < 0.8) {
+    let spawnR = Math.floor(Math.random() * ROWS);
+    let type = Math.random() < 0.4 ? "L" : "H";
+    // プレイヤーとうさぎの位置は避けて発生させる（即死回避）
+    if ((spawnR !== playerPos.r || 0 !== playerPos.c) && (spawnR !== rabbitPos.r || 0 !== rabbitPos.c)) {
+      board[`${spawnR},0`] = type;
+      addLog(`🌪️ 西から${type === 'L' ? '低気圧' : '高気圧'}が発生。`);
+    } else {
+       addLog("💨 (位置被りのため擾乱発生キャンセル)");
+    }
+  } else {
+    addLog("💨 新たな擾乱は発生しませんでした。");
+  }
+  
+  phase = "DRIFT";
+  driftStep = 0;
+  render();
+}
+
+// 3. 漂流 (プレイヤーとうさぎ両方)
+function actionDriftStep() {
+  if (gameOver) return;
+
+  // 漂流開始時のL判定チェック
+  if (checkLDeath(playerPos, "player")) return;
+  if (checkLDeath(rabbitPos, "rabbit")) return;
+  
+  // --- プレイヤーの漂流 ---
+  let [pWr, pWc] = getWindVector(playerPos.r, playerPos.c, board);
+  let pMoved = false;
+  if (pWr !== 0 || pWc !== 0) {
+      let nr = playerPos.r + pWr;
+      let nc = playerPos.c + pWc;
+      if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+          playerPos = {r: nr, c: nc};
+          addLog(`🌊 あなたは風に流されました... (${pWr}, ${pWc})`);
+          pMoved = true;
+      } else {
+          addLog("🧱 あなたは壁にぶつかりました。");
+      }
+  } else {
+      addLog("🍃 あなたの周りに風はありません。");
+  }
+
+  // --- うさぎの漂流 ---
+  let [rWr, rWc] = getWindVector(rabbitPos.r, rabbitPos.c, board);
+  let rMoved = false;
+  if (rWr !== 0 || rWc !== 0) {
+      let nr = rabbitPos.r + rWr;
+      let nc = rabbitPos.c + rWc;
+      if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+          rabbitPos = {r: nr, c: nc};
+          addLog(`🐇 うさぎも風に流されました！ (${rWr}, ${rWc})`);
+          rMoved = true;
+      } else {
+          addLog("🐇🧱 うさぎは壁にぶつかりました。");
+      }
+  } else {
+      // うさぎの風なしログは省略してすっきりさせる
+  }
+
+  // 漂流後の判定
+  if (checkWin()) return; // 流されて重なった
+  if (checkLDeath(playerPos, "player")) return; // プレイヤー死亡
+  if (checkLDeath(rabbitPos, "rabbit")) return; // うさぎ死亡
+
+  driftStep++;
+  
+  // 次のステップ判定
+  let [nextPWr, nextPWc] = getWindVector(playerPos.r, playerPos.c, board);
+  let [nextRWr, nextRWc] = getWindVector(rabbitPos.r, rabbitPos.c, board);
+
+  if (driftStep < 2 && ((nextPWr !==0 || nextPWc !==0) || (nextRWr !==0 || nextRWc !==0))) {
+    addLog("🌪️ まだ風が吹いています。「追加で漂流」してください。");
+    render(); 
+  } else {
+    addLog("⚓️ 漂流が止まりました。");
+    endDriftPhase();
+  }
+}
+
+function endDriftPhase() {
+  phase = "MOVE";
+  turnCount++;
+  updateTurnDisplay();
+  addLog(`--- ターン ${turnCount} 開始 ---`);
+  render();
+}
+
+// --- 描画関数 ---
+function render() {
+  const boardDiv = document.getElementById("board");
+  boardDiv.innerHTML = "";
+  
+  for(let r=0; r<ROWS; r++) {
+    for(let c=0; c<COLS; c++) {
+      let cell = document.createElement("div");
+      cell.className = "cell-container";
+      
+      let type = board[`${r},${c}`];
+      if (type === "L") cell.classList.add("type-L");
+      else if (type === "H") cell.classList.add("type-H");
+      
+      // うさぎの位置を強調
+      if (rabbitPos.r === r && rabbitPos.c === c) cell.classList.add("rabbit-pos");
+      // プレイヤー位置
+      if (playerPos.r === r && playerPos.c === c) cell.classList.add("current-pos");
+      
+      for(let dr=-1; dr<=1; dr++) {
+        for(let dc=-1; dc<=1; dc++) {
+          let sub = document.createElement("div");
+          sub.className = "sub-cell";
+          
+          if (dr===0 && dc===0) { 
+            sub.classList.add("center-char");
+            // 表示優先順位: プレイヤー > うさぎ > L/H
+            if (playerPos.r === r && playerPos.c === c) {
+                sub.innerText = ICON_BALLOON;
+            } else if (rabbitPos.r === r && rabbitPos.c === c) {
+                sub.innerText = ICON_RABBIT;
+            } else if (type === "L") {
+                sub.innerText = "低";
+            } else if (type === "H") {
+                sub.innerText = "高";
+            }
+          } else if (type) { 
+            let w = (type === "L" ? L_WIND[`${dr},${dc}`] : H_WIND[`${dr},${dc}`]) || [0,0];
+            let arrow = vecToArrow(w[0], w[1]);
+            if (arrow) {
+              sub.innerText = arrow;
+              sub.classList.add("arrow");
+            }
+          }
+          cell.appendChild(sub);
+        }
+      }
+      boardDiv.appendChild(cell);
+    }
+  }
+  
+  document.getElementById("controls-move").style.display = "none";
+  document.getElementById("controls-westerlies").style.display = "none";
+  document.getElementById("controls-drift").style.display = "none";
+  document.getElementById("controls-reset").style.display = gameOver ? "block" : "none";
+  
+  // 終了時のボタン表示分岐
+  let btnReset = document.getElementById("btn-reset");
+  if (gameOver) {
+    if (gameWon) {
+        btnReset.innerText = "🎉 ゲームクリア！新しいゲームを再開する";
+        btnReset.style.backgroundColor = "#4caf50"; // 緑色
+    } else {
+        btnReset.innerText = "🔄 最初からやり直す";
+        btnReset.style.backgroundColor = "#f44336"; // 赤色
+    }
+  }
+  
+  let pTitle = document.getElementById("phase-title");
+  
+  if (!gameOver) {
+    if (phase === "MOVE") {
+      pTitle.innerText = "1. 移動の操作";
+      document.getElementById("controls-move").style.display = "grid";
+    } else if (phase === "WESTERLIES") {
+      pTitle.innerText = "2. 偏西風";
+      document.getElementById("controls-westerlies").style.display = "block";
+    } else if (phase === "DRIFT") {
+      pTitle.innerText = driftStep === 0 ? "3. 漂流 (1回目)" : "3. 漂流 (2回目)";
+      let btn = document.getElementById("btn-drift");
+      btn.innerText = driftStep === 0 ? "🌊 漂流開始" : "🌊🌊 追加で漂流";
+      document.getElementById("controls-drift").style.display = "block";
+    }
+  } else {
+    pTitle.innerText = gameWon ? "🎉 CONGRATULATIONS! 🎉" : "😱 GAME OVER...";
+  }
+}
+
+initGame();
+</script>
+</body>
+</html>
